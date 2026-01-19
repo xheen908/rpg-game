@@ -78,10 +78,12 @@ function DummyModel({ pos, rotY, name, isTargeted, id }) {
   );
 }
 
+// Target C wurde von [30, 8.5, 50] auf [10, 8.5, 30] verschoben,
+// damit er auf der vorderen linken Plattform steht und sichtbar ist.
 export const dummyList = [
   { id: 'd1', pos: [20, 0, 40], rotY: 0, name: "Target A", health: DUMMY_SETTINGS.maxHealth },
   { id: 'd2', pos: [40, 0, 50], rotY: Math.PI / 2, name: "Target B", health: DUMMY_SETTINGS.maxHealth },
-  { id: 'd3', pos: [30, 8.5, 50], rotY: Math.PI, name: "Target C", health: DUMMY_SETTINGS.maxHealth }
+  { id: 'd3', pos: [10, 8.5, 30], rotY: Math.PI, name: "Target C", health: DUMMY_SETTINGS.maxHealth }
 ];
 
 export function Dummies({ targetedDummyId }) {

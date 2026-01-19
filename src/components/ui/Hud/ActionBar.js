@@ -1,81 +1,99 @@
 "use client";
 import React from 'react';
 
-const SLOT_SIZE = 44;
+const INTERFACE_SETTINGS = {
+  bottomBar: { totalSlots: 24, columns: 12 },
+  sideBar: { totalSlots: 24, columns: 2 },
+  slotSize: 40,
+};
 
-export function ActionBar({ slots = 24, columns = 12, label = "MAIN_STATION" }) {
-  // Erzeugt ein Array für die Slots
-  const slotArray = Array.from({ length: slots });
+export function ActionBar() {
+  // Hilfsfunktion zum Rendern eines Grids (wie im alten Interface)
+  const renderGrid = (total, cols) => (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${cols}, ${INTERFACE_SETTINGS.slotSize}px)`,
+      gap: '4px'
+    }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <div 
+          key={i} 
+          style={slotStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#ff0';
+            e.currentTarget.style.boxShadow = 'inset 0 0 10px rgba(255,255,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#444';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          <span style={slotNumberStyle}>{i + 1}</span>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div style={wrapperStyle}>
-      <div style={labelStyle}>{label}</div>
-      <div style={gridStyle(columns)}>
-        {slotArray.map((_, i) => (
-          <div 
-            key={i} 
-            style={slotStyle}
-            onMouseEnter={(e) => e.target.style.borderColor = '#ff0'}
-            onMouseLeave={(e) => e.target.style.borderColor = '#444'}
-          >
-            <span style={keyBindStyle}>{i + 1}</span>
-            {/* Hier käme später das Icon rein: <img src={skillIcon} /> */}
-          </div>
-        ))}
+    <>
+      {/* BOTTOM BAR - Wie im alten Interface */}
+      <div style={bottomBarWrapperStyle}>
+        {renderGrid(INTERFACE_SETTINGS.bottomBar.totalSlots, INTERFACE_SETTINGS.bottomBar.columns)}
       </div>
-    </div>
+
+      {/* SIDE BAR - Wie im alten Interface */}
+      <div style={sideBarWrapperStyle}>
+        {renderGrid(INTERFACE_SETTINGS.sideBar.totalSlots, INTERFACE_SETTINGS.sideBar.columns)}
+      </div>
+    </>
   );
 }
 
-const wrapperStyle = {
-  position: 'absolute',
-  bottom: '20px',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  pointerEvents: 'auto',
-  background: 'rgba(0,0,0,0.9)',
-  padding: '12px 8px 8px 8px',
-  border: '2px solid #333',
-  borderRadius: '4px',
-  boxShadow: '0 0 20px rgba(0,0,0,0.5)'
-};
-
-const labelStyle = {
-  position: 'absolute',
-  top: '-10px',
-  left: '10px',
-  background: '#333',
-  color: '#aaa',
-  fontSize: '9px',
-  padding: '2px 6px',
-  letterSpacing: '1px',
-  border: '1px solid #444'
-};
-
-const gridStyle = (cols) => ({
-  display: 'grid',
-  gridTemplateColumns: `repeat(${cols}, ${SLOT_SIZE}px)`,
-  gap: '4px'
-});
-
+// STYLES (Exakt aus deinem alten Interface extrahiert)
 const slotStyle = {
-  width: `${SLOT_SIZE}px`,
-  height: `${SLOT_SIZE}px`,
-  background: 'linear-gradient(135deg, #111 0%, #222 100%)',
+  width: `${INTERFACE_SETTINGS.slotSize}px`,
+  height: `${INTERFACE_SETTINGS.slotSize}px`,
+  backgroundColor: 'rgba(20, 20, 20, 0.8)',
   border: '1px solid #444',
-  position: 'relative',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  position: 'relative',
   cursor: 'pointer',
-  transition: 'all 0.1s'
+  transition: 'all 0.1s ease',
 };
 
-const keyBindStyle = {
+const slotNumberStyle = {
   position: 'absolute',
   top: '2px',
-  left: '3px',
+  left: '4px',
   fontSize: '9px',
   color: '#666',
-  fontWeight: 'bold'
+  pointerEvents: 'none',
+};
+
+const bottomBarWrapperStyle = {
+  position: 'absolute',
+  left: '50%',
+  bottom: '20px',
+  transform: 'translateX(-50%)',
+  pointerEvents: 'auto',
+  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  padding: '8px',
+  borderRadius: '4px',
+  border: '2px solid #333',
+  boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+};
+
+const sideBarWrapperStyle = {
+  position: 'absolute',
+  right: '20px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  pointerEvents: 'auto',
+  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  padding: '8px',
+  borderRadius: '4px',
+  border: '2px solid #333',
+  boxShadow: '0 0 20px rgba(0,0,0,0.5)',
 };

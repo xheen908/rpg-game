@@ -17,6 +17,7 @@ import { createWallTexture, createFloorTexture, createBridgeTexture } from './Te
 import { SPAWN_POINTS } from './/world/mapData';
 import { useTabTargeting } from '../hooks/useTabTargeting';
 import { UnitFrames } from './UnitFrames';
+//import { Interface } from './ui/Hud/Interface';
 import  Interface  from './Interface';
 
 // Import der Maps

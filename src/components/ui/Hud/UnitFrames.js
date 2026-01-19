@@ -4,42 +4,87 @@ import React from 'react';
 export function UnitFrames({ 
   playerName, 
   playerHealth, 
-  playerMaxHealth = 100,
+  playerMaxHealth,
   targetName, 
   targetHealth, 
-  targetMaxHealth = 100 
+  targetMaxHealth 
 }) {
-  const playerHealthPercentage = Math.max(0, (playerHealth / playerMaxHealth) * 100);
-  const targetHealthPercentage = Math.max(0, (targetHealth / targetMaxHealth) * 100);
+  const playerHealthPercentage = playerMaxHealth > 0 ? (playerHealth / playerMaxHealth) * 100 : 0;
+  const targetHealthPercentage = targetMaxHealth > 0 ? (targetHealth / targetMaxHealth) * 100 : 0;
 
   return (
-    <div style={containerStyle}>
+    <div style={{
+      position: 'absolute',
+      top: '20px',
+      left: '20px',
+      zIndex: 100,
+      fontFamily: 'Arial, sans-serif',
+      color: 'white',
+      textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+      // HIER: Flexbox für nebeneinander liegende Frames
+      display: 'flex',
+      gap: '20px', // Abstand zwischen den beiden Frames
+      alignItems: 'flex-start'
+    }}>
       {/* Spieler Frame */}
-      <div style={frameStyle}>
-        <h3 style={nameStyle}>{playerName || "PILOT"}</h3>
-        <div style={barContainerStyle}>
-          <div style={{ ...barFillStyle, width: `${playerHealthPercentage}%`, background: 'linear-gradient(to right, #00ff00, #008800)' }}></div>
+      <div style={{
+        background: 'rgba(0,0,0,0.6)',
+        padding: '10px',
+        borderRadius: '5px',
+        border: '1px solid #333',
+        width: '200px'
+      }}>
+        <h3 style={{ margin: '0 0 5px 0', fontSize: '1.2em' }}>{playerName || "Spieler"}</h3>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+          <div style={{ 
+            width: '100%', 
+            height: '20px', 
+            background: '#555', 
+            borderRadius: '3px', 
+            overflow: 'hidden' 
+          }}>
+            <div style={{ 
+              width: `${playerHealthPercentage}%`, 
+              height: '100%', 
+              background: 'linear-gradient(to right, #00c400, #008f00)', 
+              transition: 'width 0.2s ease-out' 
+            }}></div>
+          </div>
+          <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>{playerHealth}/{playerMaxHealth}</span>
         </div>
-        <span style={textStyle}>{playerHealth} / {playerMaxHealth} HP</span>
+        <div style={{ fontSize: '0.9em', color: '#aaa' }}>Ressource: 100/100</div>
       </div>
 
-      {/* Ziel Frame */}
+      {/* Ziel Frame (wird nur angezeigt, wenn ein Ziel anvisiert ist) */}
       {targetName && (
-        <div style={{ ...frameStyle, borderColor: '#f00' }}>
-          <h3 style={nameStyle}>{targetName}</h3>
-          <div style={barContainerStyle}>
-            <div style={{ ...barFillStyle, width: `${targetHealthPercentage}%`, background: 'linear-gradient(to right, #ff0000, #880000)' }}></div>
+        <div style={{
+          background: 'rgba(0,0,0,0.6)',
+          padding: '10px',
+          borderRadius: '5px',
+          border: '1px solid #333',
+          width: '200px'
+        }}>
+          <h3 style={{ margin: '0 0 5px 0', fontSize: '1.2em' }}>{targetName}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+            <div style={{ 
+              width: '100%', 
+              height: '20px', 
+              background: '#555', 
+              borderRadius: '3px', 
+              overflow: 'hidden' 
+            }}>
+              <div style={{ 
+                width: `${targetHealthPercentage}%`, 
+                height: '100%', 
+                background: 'linear-gradient(to right, #c40000, #8f0000)', 
+                transition: 'width 0.2s ease-out' 
+              }}></div>
+            </div>
+            <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>{targetHealth}/{targetMaxHealth}</span>
           </div>
-          <span style={textStyle}>{targetHealth} / {targetMaxHealth} HP</span>
+          <div style={{ fontSize: '0.9em', color: '#aaa' }}>Ressource: 100/100</div>
         </div>
       )}
     </div>
   );
 }
-
-const containerStyle = { position: 'absolute', top: '20px', left: '20px', zIndex: 100, display: 'flex', gap: '20px', pointerEvents: 'none', fontFamily: 'monospace' };
-const frameStyle = { background: 'rgba(0,0,0,0.8)', padding: '12px', borderLeft: '4px solid #ff0', width: '220px', color: '#ff0' };
-const nameStyle = { margin: '0 0 8px 0', fontSize: '14px', letterSpacing: '2px', fontWeight: 'bold' };
-const barContainerStyle = { width: '100%', height: '12px', background: '#222', borderRadius: '2px', overflow: 'hidden', marginBottom: '5px' };
-const barFillStyle = { height: '100%', transition: 'width 0.3s ease-out' };
-const textStyle = { fontSize: '11px', opacity: 0.8 };
