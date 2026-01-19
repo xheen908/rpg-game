@@ -58,8 +58,10 @@ npm install
 
 3. **Entwicklungsserver starten**:
 ```bash
-# Startet Client und Socket-Server parallel
+# Startet Server und Client und Socket-Server parallel
+node server.js
 npm run dev
+
 
 ```
 
