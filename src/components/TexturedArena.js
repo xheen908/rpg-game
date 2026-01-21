@@ -12,13 +12,12 @@ import { Player } from './engine/Player';
 import { World } from './World';
 import { EscMenu } from './EscMenu';
 import { RemotePlayer } from './shared/GameElements';
-import { Dummies, dummyList } from './Dummies';
+import { Dummies, initialDummyList } from './Dummies';
 import { createWallTexture, createFloorTexture, createBridgeTexture } from './TextureLibrary';
-import { SPAWN_POINTS } from './/world/mapData';
+import { SPAWN_POINTS } from './world/mapData';
 import { useTabTargeting } from '../hooks/useTabTargeting';
 import { UnitFrames } from './UnitFrames';
 import Interface from './Interface';
-
 import { Map0 } from './maps/Map0';
 import { Map1 } from './maps/Map1';
 import { usePlayerControls } from '../hooks/usePlayerControls';
@@ -29,7 +28,7 @@ function GameContent({
   playerName, mySpawnPoint, textures, otherPlayers,
   onPlayerHealthChange, playerPosition, onPlayerPositionChange,
   setGlobalTargetedId, currentMapId, isRightMouseDown,
-  startCast, cancelCast, castingSpell
+  startCast, cancelCast, castingSpell, dummies
 }) {
   const { camera, scene } = useThree();
 
@@ -39,7 +38,8 @@ function GameContent({
     );
   }, [scene.children]);
 
-  const targetedDummyId = useTabTargeting(playerPosition, camera, allSceneObjects);
+  // Wir geben die Dummies an das Tab-Targeting weiter
+  const targetedDummyId = useTabTargeting(playerPosition, camera, allSceneObjects, dummies);
 
   useEffect(() => {
     setGlobalTargetedId(targetedDummyId);
@@ -65,13 +65,9 @@ function GameContent({
         castingSpell={castingSpell}
       />
 
-      {currentMapId === 'MAP1' ? (
-        <Map1 />
-      ) : (
-        <Map0 wallTexture={textures.wall} bridgeTexture={textures.bridge} />
-      )}
+      {currentMapId === 'MAP1' ? <Map1 /> : <Map0 wallTexture={textures.wall} bridgeTexture={textures.bridge} />}
 
-      <Dummies targetedDummyId={targetedDummyId} />
+      <Dummies dummies={dummies} targetedDummyId={targetedDummyId} />
 
       {otherPlayers && Object.entries(otherPlayers).map(([id, p]) => (
         <RemotePlayer key={id} {...p} />
@@ -81,7 +77,6 @@ function GameContent({
         ref={controlsRef}
         enabled={isRightMouseDown && !isPaused && !isChatOpen}
         selector={null}
-        onUnlock={() => {}} 
       />
     </Suspense>
   );
@@ -92,10 +87,22 @@ export default function TexturedArena() {
   const [activeMap, setActiveMap] = useState('MAP0');
   const [playerName, setPlayerName] = useState("");
   const [currentLobby, setCurrentLobby] = useState(null);
-  
   const [localMessages, setLocalMessages] = useState([]);
+  
+  // Dummy State Management
+  const [dummies, setDummies] = useState(initialDummyList);
 
   const handleSpellComplete = useCallback((result) => {
+    if (result.damage && result.targetId) {
+      setDummies(prev => prev.map(d => {
+        if (d.id === result.targetId) {
+          const newHealth = Math.max(0, d.health - result.damage);
+          return { ...d, health: newHealth };
+        }
+        return d;
+      }));
+    }
+
     const newMessage = {
       text: result.text,
       color: result.color,
@@ -106,16 +113,7 @@ export default function TexturedArena() {
   }, []);
 
   const { castingSpell, castProgress, startCast, cancelCast } = useSpellSystem(handleSpellComplete);
-
-  const {
-    controlsRef,
-    isPaused,
-    setIsPaused,
-    isChatOpen,
-    setIsChatOpen,
-    isRightMouseDown,
-    setupPointerLockOnCanvas
-  } = usePlayerControls(gameState);
+  const { controlsRef, isPaused, setIsPaused, isChatOpen, setIsChatOpen, isRightMouseDown, setupPointerLockOnCanvas } = usePlayerControls(gameState);
 
   const [chatInput, setChatInput] = useState("");
   const [isMoving, setIsMoving] = useState(false);
@@ -125,23 +123,9 @@ export default function TexturedArena() {
   const [playerCurrentPosition, setPlayerCurrentPosition] = useState(new THREE.Vector3());
   const [targetedDummyId, setTargetedDummyId] = useState(null);
 
-  const {
-    activeLobbies = [],
-    lobbyPlayers = [],
-    chatMessages = [],
-    otherPlayers = {}
-  } = useGameSocket(setGameState);
+  const { activeLobbies = [], lobbyPlayers = [], chatMessages = [], otherPlayers = {} } = useGameSocket(setGameState);
 
-  const allMessages = useMemo(() => {
-    return [...chatMessages, ...localMessages];
-  }, [chatMessages, localMessages]);
-
-  useEffect(() => {
-    socket.on('mapUpdate', (mapId) => {
-      setActiveMap(mapId);
-    });
-    return () => socket.off('mapUpdate');
-  }, []);
+  const allMessages = useMemo(() => [...chatMessages, ...localMessages], [chatMessages, localMessages]);
 
   const mySpawnPoint = useMemo(() => {
     const index = lobbyPlayers.findIndex(p => p.id === socket.id);
@@ -160,28 +144,21 @@ export default function TexturedArena() {
     if (gameState === 'PLAYING') setIsChatOpen(false);
   };
 
-  const handleMapChange = (mapId) => {
-    setActiveMap(mapId);
-    socket.emit('changeMap', { lobbyId: currentLobby, mapId });
-  };
+  const targetedDummy = useMemo(() => dummies.find(d => d.id === targetedDummyId), [targetedDummyId, dummies]);
 
-  const targetedDummy = useMemo(() => dummyList.find(d => d.id === targetedDummyId), [targetedDummyId]);
-
-  // Wir kapseln den startCast Aufruf, um Position und Ziel mitzugeben
   const handleStartCast = useCallback((spellId) => {
-    if (startCast) {
-      startCast(spellId, playerCurrentPosition, targetedDummy);
-    }
+    if (startCast) startCast(spellId, playerCurrentPosition, targetedDummy);
   }, [startCast, playerCurrentPosition, targetedDummy]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative', overflow: 'hidden' }}>
-
       {gameState === 'PLAYING' && (
         <>
           <UnitFrames
             playerName={playerName} playerHealth={playerCurrentHealth} playerMaxHealth={playerMaxHealth}
-            targetName={targetedDummy?.name} targetHealth={targetedDummy?.health} targetMaxHealth={100}
+            targetName={targetedDummy?.name} 
+            targetHealth={targetedDummy?.health || 0} 
+            targetMaxHealth={100000}
           />
           <Interface castingSpell={castingSpell} castProgress={castProgress} />
         </>
@@ -189,7 +166,6 @@ export default function TexturedArena() {
 
       {gameState === 'START' && <Login playerName={playerName} setPlayerName={setPlayerName} onEnter={() => {
         if (playerName) {
-          localStorage.setItem("doom_name", playerName);
           setGameState('LOBBY_SELECTION');
           socket.emit('requestLobbyList');
         }
@@ -202,7 +178,6 @@ export default function TexturedArena() {
           chatMessages={chatMessages} chatInput={chatInput} setChatInput={setChatInput}
           onSendMessage={handleSendMessage}
           selectedMap={activeMap}
-          onMapChange={handleMapChange}
           onJoin={(id) => { setCurrentLobby(id); socket.emit('joinLobby', { lobbyId: id, playerName }); setGameState('LOBBY_WAITING'); }}
           onCreate={() => {
             const id = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -215,25 +190,14 @@ export default function TexturedArena() {
         />
       )}
 
-      {gameState === 'PLAYING' && (
-        <>
-          {isPaused && <EscMenu onResume={() => setIsPaused(false)} onLeave={() => {
-            socket.emit('leaveLobby', currentLobby);
-            setGameState('LOBBY_SELECTION');
-          }} />}
-          <Chat 
-            chatMessages={allMessages} 
-            chatInput={chatInput} 
-            setChatInput={setChatInput} 
-            onSend={handleSendMessage} 
-            isActive={isChatOpen} 
-          />
-        </>
-      )}
+      {gameState === 'PLAYING' && isPaused && <EscMenu onResume={() => setIsPaused(false)} onLeave={() => {
+        socket.emit('leaveLobby', currentLobby);
+        setGameState('LOBBY_SELECTION');
+      }} />}
 
-      <Canvas shadows camera={{ fov: 75 }} onCreated={({ gl }) => {
-        setupPointerLockOnCanvas(gl);
-      }}>
+      {gameState === 'PLAYING' && <Chat chatMessages={allMessages} chatInput={chatInput} setChatInput={setChatInput} onSend={handleSendMessage} isActive={isChatOpen} />}
+
+      <Canvas shadows camera={{ fov: 75 }} onCreated={({ gl }) => setupPointerLockOnCanvas(gl)}>
         <GameContent
           controlsRef={controlsRef} isChatOpen={isChatOpen} isPaused={isPaused}
           setIsMoving={setIsMoving} setIsFiring={setIsFiring} playerName={playerName}
@@ -247,6 +211,7 @@ export default function TexturedArena() {
           startCast={handleStartCast}
           cancelCast={cancelCast}
           castingSpell={castingSpell}
+          dummies={dummies}
         />
       </Canvas>
     </div>

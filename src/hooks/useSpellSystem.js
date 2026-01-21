@@ -20,13 +20,11 @@ export function useSpellSystem(onSpellComplete) {
     const spell = SPELLS[spellId];
     if (!spell || castingSpell) return;
 
-    // 1. Ziel-Prüfung
-    if (!target) {
-      onSpellComplete?.({ text: "Kein Ziel ausgewählt!", color: "#ff4444" });
+    if (!target || target.health <= 0) {
+      onSpellComplete?.({ text: "Kein gültiges Ziel!", color: "#ff4444" });
       return;
     }
 
-    // 2. Reichweiten-Prüfung beim Start
     const targetVec = new THREE.Vector3(...target.pos);
     const distance = playerPos.distanceTo(targetVec);
 
@@ -35,7 +33,6 @@ export function useSpellSystem(onSpellComplete) {
       return;
     }
 
-    // Alles okay, Cast starten
     setCastingSpell(spell);
     setCastProgress(0);
     currentTargetRef.current = target;
@@ -45,11 +42,10 @@ export function useSpellSystem(onSpellComplete) {
     const updateProgress = () => {
       if (!startTimeRef.current) return;
 
-      // Prüfung während des Casts: Ist das Ziel noch in Reichweite?
       const currentDist = playerPosRef.current.distanceTo(new THREE.Vector3(...currentTargetRef.current.pos));
       if (currentDist > spell.range) {
         cancelCast();
-        onSpellComplete?.({ text: "Zauber abgebrochen: Ziel außer Reichweite!", color: "#ff4444" });
+        onSpellComplete?.({ text: "Ziel außer Reichweite!", color: "#ff4444" });
         return;
       }
 
@@ -64,9 +60,11 @@ export function useSpellSystem(onSpellComplete) {
         const result = calculateDamage(spell);
         
         onSpellComplete?.({
-          text: `${spell.name} trifft ${currentTargetRef.current.name} für ${result.damage} Schaden! ${result.isCrit ? '⭐ KRITISCH! ⭐' : ''}`,
+          text: `${spell.name} trifft ${currentTargetRef.current.name} für ${result.damage} Schaden!`,
           color: spell.color,
-          isCrit: result.isCrit
+          isCrit: result.isCrit,
+          damage: result.damage, // Wichtig für State-Update
+          targetId: currentTargetRef.current.id // Wichtig für State-Update
         });
 
         setTimeout(() => {
