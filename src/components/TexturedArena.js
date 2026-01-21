@@ -14,7 +14,7 @@ import { EscMenu } from './EscMenu';
 import { RemotePlayer } from './shared/GameElements';
 import { Dummies, initialDummyList } from './Dummies';
 import { createWallTexture, createFloorTexture, createBridgeTexture } from './TextureLibrary';
-import { SPAWN_POINTS } from './world/mapData';
+import { SPAWN_POINTS } from './/world/mapData';
 import { useTabTargeting } from '../hooks/useTabTargeting';
 import { UnitFrames } from './UnitFrames';
 import Interface from './Interface';
@@ -22,13 +22,15 @@ import { Map0 } from './maps/Map0';
 import { Map1 } from './maps/Map1';
 import { usePlayerControls } from '../hooks/usePlayerControls';
 import { useSpellSystem } from '../hooks/useSpellSystem';
+import { Frostbolt } from './Frostblitz'; 
 
 function GameContent({
   controlsRef, isChatOpen, isPaused, setIsMoving, setIsFiring,
   playerName, mySpawnPoint, textures, otherPlayers,
   onPlayerHealthChange, playerPosition, onPlayerPositionChange,
   setGlobalTargetedId, currentMapId, isRightMouseDown,
-  startCast, cancelCast, castingSpell, dummies
+  startCast, cancelCast, castingSpell, dummies, 
+  projectiles, onProjectileHit 
 }) {
   const { camera, scene } = useThree();
 
@@ -38,7 +40,6 @@ function GameContent({
     );
   }, [scene.children]);
 
-  // Wir geben die Dummies an das Tab-Targeting weiter
   const targetedDummyId = useTabTargeting(playerPosition, camera, allSceneObjects, dummies);
 
   useEffect(() => {
@@ -66,8 +67,17 @@ function GameContent({
       />
 
       {currentMapId === 'MAP1' ? <Map1 /> : <Map0 wallTexture={textures.wall} bridgeTexture={textures.bridge} />}
-
       <Dummies dummies={dummies} targetedDummyId={targetedDummyId} />
+
+      {projectiles.map(p => (
+        <Frostbolt 
+          key={p.id} 
+          id={p.id} 
+          startPos={p.startPos} 
+          targetPos={p.targetPos} 
+          onHit={onProjectileHit} 
+        />
+      ))}
 
       {otherPlayers && Object.entries(otherPlayers).map(([id, p]) => (
         <RemotePlayer key={id} {...p} />
@@ -88,28 +98,49 @@ export default function TexturedArena() {
   const [playerName, setPlayerName] = useState("");
   const [currentLobby, setCurrentLobby] = useState(null);
   const [localMessages, setLocalMessages] = useState([]);
-  
-  // Dummy State Management
   const [dummies, setDummies] = useState(initialDummyList);
+  const [projectiles, setProjectiles] = useState([]);
+
+  const handleProjectileHit = useCallback((projectileId) => {
+    setProjectiles(prev => {
+      const proj = prev.find(p => p.id === projectileId);
+      if (proj) {
+        setDummies(dums => dums.map(d => 
+          d.id === proj.targetId 
+            ? { ...d, health: Math.max(0, d.health - proj.damage) } 
+            : d
+        ));
+        const msg = {
+          text: `TREFFER! ${proj.damage} Schaden!`,
+          color: proj.color,
+          time: Date.now()
+        };
+        setLocalMessages(m => [...m, msg].slice(-50));
+      }
+      return prev.filter(p => p.id !== projectileId);
+    });
+  }, []);
 
   const handleSpellComplete = useCallback((result) => {
-    if (result.damage && result.targetId) {
-      setDummies(prev => prev.map(d => {
-        if (d.id === result.targetId) {
-          const newHealth = Math.max(0, d.health - result.damage);
-          return { ...d, health: newHealth };
-        }
-        return d;
-      }));
+    if (result.type === 'PROJECTILE_LAUNCH') {
+      const newProj = {
+        id: Math.random().toString(),
+        startPos: result.startPos,
+        targetPos: result.targetPos,
+        targetId: result.targetId,
+        damage: result.damage,
+        color: result.color
+      };
+      setProjectiles(prev => [...prev, newProj]);
     }
-
-    const newMessage = {
-      text: result.text,
-      color: result.color,
-      time: Date.now(),
-      sender: null
-    };
-    setLocalMessages(prev => [...prev, newMessage].slice(-50));
+    
+    if (result.text) {
+        setLocalMessages(prev => [...prev, {
+            text: result.text,
+            color: result.color,
+            time: Date.now()
+        }].slice(-50));
+    }
   }, []);
 
   const { castingSpell, castProgress, startCast, cancelCast } = useSpellSystem(handleSpellComplete);
@@ -124,7 +155,6 @@ export default function TexturedArena() {
   const [targetedDummyId, setTargetedDummyId] = useState(null);
 
   const { activeLobbies = [], lobbyPlayers = [], chatMessages = [], otherPlayers = {} } = useGameSocket(setGameState);
-
   const allMessages = useMemo(() => [...chatMessages, ...localMessages], [chatMessages, localMessages]);
 
   const mySpawnPoint = useMemo(() => {
@@ -144,6 +174,13 @@ export default function TexturedArena() {
     if (gameState === 'PLAYING') setIsChatOpen(false);
   };
 
+  const handleMapChange = (mapId) => {
+    setActiveMap(mapId);
+    if (currentLobby) {
+      socket.emit('changeMap', { lobbyId: currentLobby, mapId });
+    }
+  };
+
   const targetedDummy = useMemo(() => dummies.find(d => d.id === targetedDummyId), [targetedDummyId, dummies]);
 
   const handleStartCast = useCallback((spellId) => {
@@ -156,9 +193,7 @@ export default function TexturedArena() {
         <>
           <UnitFrames
             playerName={playerName} playerHealth={playerCurrentHealth} playerMaxHealth={playerMaxHealth}
-            targetName={targetedDummy?.name} 
-            targetHealth={targetedDummy?.health || 0} 
-            targetMaxHealth={100000}
+            targetName={targetedDummy?.name} targetHealth={targetedDummy?.health || 0} targetMaxHealth={100000}
           />
           <Interface castingSpell={castingSpell} castProgress={castProgress} />
         </>
@@ -178,6 +213,7 @@ export default function TexturedArena() {
           chatMessages={chatMessages} chatInput={chatInput} setChatInput={setChatInput}
           onSendMessage={handleSendMessage}
           selectedMap={activeMap}
+          onMapChange={handleMapChange}
           onJoin={(id) => { setCurrentLobby(id); socket.emit('joinLobby', { lobbyId: id, playerName }); setGameState('LOBBY_WAITING'); }}
           onCreate={() => {
             const id = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -212,6 +248,8 @@ export default function TexturedArena() {
           cancelCast={cancelCast}
           castingSpell={castingSpell}
           dummies={dummies}
+          projectiles={projectiles}
+          onProjectileHit={handleProjectileHit}
         />
       </Canvas>
     </div>

@@ -12,14 +12,14 @@ const DUMMY_SETTINGS = {
   scale: 0.00005,
   groundOffset: -0.1,
   nameTagHeight: 3.8,
-  maxHealth: 100000 
+  maxHealth: 100000 // Geändert auf 100.000
 };
 
 function DummyModel({ pos, rotY, name, isTargeted, id, health }) {
   const fbx = useLoader(FBXLoader, DUMMY_SETTINGS.modelPath);
   const texture = useLoader(THREE.TextureLoader, DUMMY_SETTINGS.texturePath);
   
-  // Wenn der Dummy keine HP mehr hat, ist er "tot" und wird nicht gerendert
+  // Wenn HP auf 0 sind, verschwindet der Dummy (Best Practice für "Tod")
   if (health <= 0) return null;
 
   const instance = useMemo(() => {
@@ -68,15 +68,15 @@ function DummyModel({ pos, rotY, name, isTargeted, id, health }) {
         <Text fontSize={0.4} color="#ffffff" outlineWidth={0.04} outlineColor="#000">
           {name}
         </Text>
-        <Text position={[0, -0.5, 0]} fontSize={0.3} color="#44ff44">
-          {Math.ceil(health).toLocaleString('de-DE')} / 100.000
+        <Text position={[0, -0.5, 0]} fontSize={0.3} color="#ff4444">
+          {Math.ceil(health).toLocaleString('de-DE')} HP
         </Text>
       </Billboard>
     </group>
   );
 }
 
-// Export der Initialdaten mit 100.000 HP
+// Initialer State für die Arena
 export const initialDummyList = [
   { id: 'd1', pos: [20, 0, 40], rotY: 0, name: "Target A", health: 100000, maxHealth: 100000 },
   { id: 'd2', pos: [40, 0, 50], rotY: Math.PI / 2, name: "Target B", health: 100000, maxHealth: 100000 },
@@ -92,7 +92,7 @@ export function Dummies({ dummies, targetedDummyId }) {
           id={d.id}
           pos={d.pos} 
           rotY={d.rotY} 
-          name={d.name} 
+          name={d.name}
           health={d.health}
           isTargeted={d.id === targetedDummyId}
         />

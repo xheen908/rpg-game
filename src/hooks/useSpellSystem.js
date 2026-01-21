@@ -21,7 +21,7 @@ export function useSpellSystem(onSpellComplete) {
     if (!spell || castingSpell) return;
 
     if (!target || target.health <= 0) {
-      onSpellComplete?.({ text: "Kein gültiges Ziel!", color: "#ff4444" });
+      onSpellComplete?.({ text: "Ungültiges Ziel!", color: "#ff4444" });
       return;
     }
 
@@ -29,7 +29,7 @@ export function useSpellSystem(onSpellComplete) {
     const distance = playerPos.distanceTo(targetVec);
 
     if (distance > spell.range) {
-      onSpellComplete?.({ text: "Ziel ist zu weit entfernt!", color: "#ff4444" });
+      onSpellComplete?.({ text: "Ziel zu weit entfernt!", color: "#ff4444" });
       return;
     }
 
@@ -59,12 +59,18 @@ export function useSpellSystem(onSpellComplete) {
         setCastProgress(1);
         const result = calculateDamage(spell);
         
+        // ÄNDERUNG: Wir feuern jetzt PROJECTILE_LAUNCH statt SPELL_HIT
         onSpellComplete?.({
-          text: `${spell.name} trifft ${currentTargetRef.current.name} für ${result.damage} Schaden!`,
+          type: 'PROJECTILE_LAUNCH',
+          text: `${spell.name} abgefeuert!`,
           color: spell.color,
           isCrit: result.isCrit,
-          damage: result.damage, // Wichtig für State-Update
-          targetId: currentTargetRef.current.id // Wichtig für State-Update
+          damage: result.damage,
+          targetId: currentTargetRef.current.id,
+          // Startposition leicht erhöht (Brusthöhe)
+          startPos: playerPosRef.current.clone().add(new THREE.Vector3(0, 1.5, 0)),
+          // Zielposition (Brusthöhe des Dummys)
+          targetPos: new THREE.Vector3(...currentTargetRef.current.pos).add(new THREE.Vector3(0, 1.5, 0))
         });
 
         setTimeout(() => {
