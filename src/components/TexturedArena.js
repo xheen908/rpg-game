@@ -23,6 +23,7 @@ import { Map1 } from './maps/Map1';
 import { usePlayerControls } from '../hooks/usePlayerControls';
 import { useSpellSystem } from '../hooks/useSpellSystem';
 import { Frostbolt } from './Frostblitz'; 
+import { CombatText } from './CombatText';
 
 function GameContent({
   controlsRef, isChatOpen, isPaused, setIsMoving, setIsFiring,
@@ -30,7 +31,7 @@ function GameContent({
   onPlayerHealthChange, playerPosition, onPlayerPositionChange,
   setGlobalTargetedId, currentMapId, isRightMouseDown,
   startCast, cancelCast, castingSpell, dummies, 
-  projectiles, onProjectileHit 
+  projectiles, onProjectileHit, combatTexts, onCombatTextComplete 
 }) {
   const { camera, scene } = useThree();
 
@@ -79,6 +80,17 @@ function GameContent({
         />
       ))}
 
+      {combatTexts.map(ct => (
+        <CombatText 
+          key={ct.id}
+          position={ct.position}
+          value={ct.value}
+          color={ct.color}
+          isCrit={ct.isCrit}
+          onComplete={() => onCombatTextComplete(ct.id)}
+        />
+      ))}
+
       {otherPlayers && Object.entries(otherPlayers).map(([id, p]) => (
         <RemotePlayer key={id} {...p} />
       ))}
@@ -100,18 +112,33 @@ export default function TexturedArena() {
   const [localMessages, setLocalMessages] = useState([]);
   const [dummies, setDummies] = useState(initialDummyList);
   const [projectiles, setProjectiles] = useState([]);
+  const [combatTexts, setCombatTexts] = useState([]);
 
   const handleProjectileHit = useCallback((projectileId) => {
     setProjectiles(prev => {
       const proj = prev.find(p => p.id === projectileId);
       if (proj) {
+        const targetDummy = dummies.find(d => d.id === proj.targetId);
+        
+        if (targetDummy) {
+          const textId = Math.random().toString();
+          setCombatTexts(prevTexts => [...prevTexts, {
+            id: textId,
+            position: targetDummy.pos,
+            value: proj.damage,
+            color: "yellow",
+            isCrit: proj.isCrit // Crit-Info vom Projektil übernehmen
+          }]);
+        }
+
         setDummies(dums => dums.map(d => 
           d.id === proj.targetId 
             ? { ...d, health: Math.max(0, d.health - proj.damage) } 
             : d
         ));
+
         const msg = {
-          text: `TREFFER! ${proj.damage} Schaden!`,
+          text: `${proj.isCrit ? 'KRITISCH! ' : ''}${proj.damage} Schaden!`,
           color: proj.color,
           time: Date.now()
         };
@@ -119,6 +146,10 @@ export default function TexturedArena() {
       }
       return prev.filter(p => p.id !== projectileId);
     });
+  }, [dummies]);
+
+  const removeCombatText = useCallback((id) => {
+    setCombatTexts(prev => prev.filter(t => t.id !== id));
   }, []);
 
   const handleSpellComplete = useCallback((result) => {
@@ -129,17 +160,12 @@ export default function TexturedArena() {
         targetPos: result.targetPos,
         targetId: result.targetId,
         damage: result.damage,
-        color: result.color
+        color: result.color,
+        isCrit: result.isCrit // WICHTIG: Crit-Status mitsenden
       };
       setProjectiles(prev => [...prev, newProj]);
-    }
-    
-    if (result.text) {
-        setLocalMessages(prev => [...prev, {
-            text: result.text,
-            color: result.color,
-            time: Date.now()
-        }].slice(-50));
+    } else if (result.text) {
+        setLocalMessages(prev => [...prev, { ...result, time: Date.now() }].slice(-50));
     }
   }, []);
 
@@ -250,6 +276,8 @@ export default function TexturedArena() {
           dummies={dummies}
           projectiles={projectiles}
           onProjectileHit={handleProjectileHit}
+          combatTexts={combatTexts}
+          onCombatTextComplete={removeCombatText}
         />
       </Canvas>
     </div>
