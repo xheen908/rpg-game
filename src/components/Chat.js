@@ -31,18 +31,25 @@ export function Chat({ chatMessages, chatInput, setChatInput, onSend, isActive, 
     <div style={{...chatContainerStyle, opacity: isActive ? 1 : 0.6}}>
       <div style={chatHeaderStyle}>
         <span style={blinkDot}></span>
-        LOCAL_COMM_LINK: ACTIVE
+        COMBAT_LOG & COMM_LINK: ACTIVE
       </div>
 
       <div ref={scrollRef} style={messageBoxStyle}>
         {Array.isArray(chatMessages) && chatMessages.map((m, i) => {
-          const displayAuthor = m?.playerName || m?.sender || "SYS";
+          // Unterstützung für System-Nachrichten ohne Autor
+          const displayAuthor = m?.playerName || m?.sender;
           const displayText = m?.message || m?.text || "";
+          // Wir nutzen die Farbe aus der Nachricht oder Standard Weiß/Gelb
+          const textColor = m?.color || (displayAuthor ? "#fff" : "#ff0");
 
           return (
             <div key={i} style={messageLineStyle}>
-              <span style={authorStyle}>{String(displayAuthor).toUpperCase()}:</span>
-              <span style={textStyle}>{String(displayText)}</span>
+              {displayAuthor && (
+                <span style={authorStyle}>{String(displayAuthor).toUpperCase()}:</span>
+              )}
+              <span style={{ ...textStyle, color: textColor }}>
+                {String(displayText)}
+              </span>
             </div>
           );
         })}
@@ -64,14 +71,15 @@ export function Chat({ chatMessages, chatInput, setChatInput, onSend, isActive, 
 }
 
 const chatContainerStyle = { 
-  position: 'absolute', bottom: '40px', left: '20px', zIndex: 150, width: '350px', 
-  background: 'rgba(0, 0, 0, 0.8)', borderLeft: '3px solid #ff0', padding: '10px', 
-  color: '#ff0', fontFamily: 'monospace', transition: 'all 0.2s'
+  position: 'absolute', bottom: '40px', left: '20px', zIndex: 150, width: '380px', 
+  background: 'rgba(0, 0, 0, 0.85)', borderLeft: '3px solid #ff0', padding: '10px', 
+  color: '#ff0', fontFamily: 'monospace', transition: 'all 0.2s',
+  boxShadow: '0 0 20px rgba(0,0,0,0.5)'
 };
-const chatHeaderStyle = { fontSize: '10px', marginBottom: '8px', borderBottom: '1px solid rgba(255, 255, 0, 0.2)' };
+const chatHeaderStyle = { fontSize: '10px', marginBottom: '8px', borderBottom: '1px solid rgba(255, 255, 0, 0.2)', letterSpacing: '1px' };
 const blinkDot = { display: 'inline-block', width: '6px', height: '6px', background: '#ff0', borderRadius: '50%', marginRight: '8px' };
-const messageBoxStyle = { height: '150px', overflowY: 'auto', marginBottom: '10px' };
-const messageLineStyle = { marginBottom: '4px', fontSize: '13px', lineBreak: 'anywhere' };
+const messageBoxStyle = { height: '180px', overflowY: 'auto', marginBottom: '10px' };
+const messageLineStyle = { marginBottom: '4px', fontSize: '12px', lineBreak: 'anywhere', textShadow: '1px 1px 1px #000' };
 const authorStyle = { color: '#aaa', marginRight: '8px', fontWeight: 'bold' };
 const textStyle = { color: '#fff' };
 const inputWrapperStyle = { display: 'flex', alignItems: 'center', borderTop: '1px solid rgba(255, 255, 0, 0.3)', paddingTop: '8px' };

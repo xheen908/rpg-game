@@ -22,12 +22,14 @@ import Interface from './Interface';
 import { Map0 } from './maps/Map0';
 import { Map1 } from './maps/Map1';
 import { usePlayerControls } from '../hooks/usePlayerControls';
+import { useSpellSystem } from '../hooks/useSpellSystem';
 
 function GameContent({
   controlsRef, isChatOpen, isPaused, setIsMoving, setIsFiring,
   playerName, mySpawnPoint, textures, otherPlayers,
   onPlayerHealthChange, playerPosition, onPlayerPositionChange,
-  setGlobalTargetedId, currentMapId, isRightMouseDown 
+  setGlobalTargetedId, currentMapId, isRightMouseDown,
+  startCast, cancelCast, castingSpell
 }) {
   const { camera, scene } = useThree();
 
@@ -58,6 +60,9 @@ function GameContent({
         spawnPoint={mySpawnPoint}
         onPlayerHealthChange={onPlayerHealthChange}
         onPlayerPositionChange={onPlayerPositionChange}
+        startCast={startCast}
+        cancelCast={cancelCast}
+        castingSpell={castingSpell}
       />
 
       {currentMapId === 'MAP1' ? (
@@ -74,14 +79,9 @@ function GameContent({
 
       <PointerLockControls
         ref={controlsRef}
-        // Enabled steuert die Kamera-Rotation
         enabled={isRightMouseDown && !isPaused && !isChatOpen}
-        // selector={null} verhindert, dass die Komponente Listener auf das Dokument legt
         selector={null}
-        onUnlock={() => {
-          // Falls der Browser den Lock verliert (z.B. durch System-Popups), 
-          // setzen wir den State zurück, aber pausieren nicht das Spiel.
-        }} 
+        onUnlock={() => {}} 
       />
     </Suspense>
   );
@@ -92,6 +92,20 @@ export default function TexturedArena() {
   const [activeMap, setActiveMap] = useState('MAP0');
   const [playerName, setPlayerName] = useState("");
   const [currentLobby, setCurrentLobby] = useState(null);
+  
+  const [localMessages, setLocalMessages] = useState([]);
+
+  const handleSpellComplete = useCallback((result) => {
+    const newMessage = {
+      text: result.text,
+      color: result.color,
+      time: Date.now(),
+      sender: null
+    };
+    setLocalMessages(prev => [...prev, newMessage].slice(-50));
+  }, []);
+
+  const { castingSpell, castProgress, startCast, cancelCast } = useSpellSystem(handleSpellComplete);
 
   const {
     controlsRef,
@@ -117,6 +131,10 @@ export default function TexturedArena() {
     chatMessages = [],
     otherPlayers = {}
   } = useGameSocket(setGameState);
+
+  const allMessages = useMemo(() => {
+    return [...chatMessages, ...localMessages];
+  }, [chatMessages, localMessages]);
 
   useEffect(() => {
     socket.on('mapUpdate', (mapId) => {
@@ -149,6 +167,13 @@ export default function TexturedArena() {
 
   const targetedDummy = useMemo(() => dummyList.find(d => d.id === targetedDummyId), [targetedDummyId]);
 
+  // Wir kapseln den startCast Aufruf, um Position und Ziel mitzugeben
+  const handleStartCast = useCallback((spellId) => {
+    if (startCast) {
+      startCast(spellId, playerCurrentPosition, targetedDummy);
+    }
+  }, [startCast, playerCurrentPosition, targetedDummy]);
+
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000', position: 'relative', overflow: 'hidden' }}>
 
@@ -158,7 +183,7 @@ export default function TexturedArena() {
             playerName={playerName} playerHealth={playerCurrentHealth} playerMaxHealth={playerMaxHealth}
             targetName={targetedDummy?.name} targetHealth={targetedDummy?.health} targetMaxHealth={100}
           />
-          <Interface />
+          <Interface castingSpell={castingSpell} castProgress={castProgress} />
         </>
       )}
 
@@ -196,7 +221,13 @@ export default function TexturedArena() {
             socket.emit('leaveLobby', currentLobby);
             setGameState('LOBBY_SELECTION');
           }} />}
-          <Chat chatMessages={chatMessages} chatInput={chatInput} setChatInput={setChatInput} onSend={handleSendMessage} isActive={isChatOpen} />
+          <Chat 
+            chatMessages={allMessages} 
+            chatInput={chatInput} 
+            setChatInput={setChatInput} 
+            onSend={handleSendMessage} 
+            isActive={isChatOpen} 
+          />
         </>
       )}
 
@@ -212,7 +243,10 @@ export default function TexturedArena() {
           onPlayerPositionChange={(pos) => setPlayerCurrentPosition(pos.clone())}
           setGlobalTargetedId={setTargetedDummyId}
           currentMapId={activeMap}
-          isRightMouseDown={isRightMouseDown} 
+          isRightMouseDown={isRightMouseDown}
+          startCast={handleStartCast}
+          cancelCast={cancelCast}
+          castingSpell={castingSpell}
         />
       </Canvas>
     </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stage, useFBX } from '@react-three/drei';
 import * as THREE from 'three';
+import { CastingBar } from './ui/Castbar';
 
 const INTERFACE_SETTINGS = {
   bottomBar: { totalSlots: 24, columns: 12 },
@@ -13,9 +14,7 @@ const INTERFACE_SETTINGS = {
   character: { width: 380, height: 520 }
 };
 
-// Character Model Komponente für FBX
 function CharacterModel() {
-  // Pfad zu deinem Model im public Ordner
   const fbx = useFBX('/models/rp_nathan_animated_003_walking.fbx');
   const mixer = useRef();
 
@@ -34,7 +33,7 @@ function CharacterModel() {
   return <primitive object={fbx} scale={0.02} position={[0, -2, 0]} />;
 }
 
-export default function Interface() {
+export default function Interface({ castingSpell, castProgress }) {
   const [isSkillbookOpen, setIsSkillbookOpen] = useState(false);
   const [isCharacterOpen, setIsCharacterOpen] = useState(false);
 
@@ -83,6 +82,9 @@ export default function Interface() {
         </div>
       </div>
 
+      {/* Castbar ist nun hier im Interface integriert */}
+      <CastingBar spell={castingSpell} progress={castProgress} />
+
       {/* Charakter Fenster (C) */}
       {isCharacterOpen && (
         <div style={styles.characterWrapper}>
@@ -107,7 +109,6 @@ export default function Interface() {
                 ))}
               </div>
 
-              {/* Model Viewer */}
               <div style={styles.modelContainer}>
                 <Canvas shadows camera={{ position: [0, 0, 5], fov: 45 }}>
                   <ambientLight intensity={0.7} />
